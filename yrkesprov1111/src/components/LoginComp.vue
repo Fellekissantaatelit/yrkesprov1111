@@ -29,7 +29,7 @@ const password = ref('')
 
 const handleLogin = async () => {
   try {
-  const response = await axios.post('http://http://localhost/frågesport/yrkesprov1111/api/login.php', {
+  const response = await axios.post('http://localhost/frågesport/api/login.php', {
   action: 'login',
   username: username.value,
   password: password.value
