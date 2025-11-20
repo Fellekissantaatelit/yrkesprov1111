@@ -1,63 +1,32 @@
 <?php
-session_start();
-header("Content-Type: application/json");
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: POST, OPTIONS");
+header("Access-Control-Allow-Origin: http://localhost:5173");
+header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Headers: Content-Type");
+header("Access-Control-Allow-Methods: POST, OPTIONS");
+header("Content-Type: application/json");
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') exit;
+
+session_start();
+require_once "config.php";
+
+$data = json_decode(file_get_contents("php://input"), true);
+$username = $data["username"] ?? "";
+$password = $data["password"] ?? "";
+
+$stmt = $pdo->prepare("SELECT * FROM users WHERE username = ?");
+$stmt->execute([$username]);
+$user = $stmt->fetch();
+
+if (!$user || !password_verify($password, $user["password"])) {
+    echo json_encode(["success" => false, "message" => "Invalid login"]);
     exit;
 }
 
-$host = 'localhost';
-$db = 'frågesport db';
-$user = 'root';
-$pass = '';
-$charset = 'utf8mb4';
+$_SESSION["user"] = [
+    "id" => $user["u_id"],
+    "username" => $user["username"],
+    "role" => $user["role_id"],
+];
 
-$dsn = "mysql:host=$host;dbname=$db;charset=$charset";
-$options = [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION];
-
-try {
-    $pdo = new PDO($dsn, $user, $pass, $options);
-
-    $data = json_decode(file_get_contents('php://input'), true);
-    $action = $data['action'] ?? '';
-
-
-    if ($action === 'login') {
-        $username = $data['username'] ?? '';
-        $password = $data['password'] ?? '';
-
-        $stmt = $pdo->prepare("SELECT * FROM users WHERE username = :username LIMIT 1");
-        $stmt->execute(['username' => $username]);
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($user) {
-            if (password_verify($password, $user['password'])) {
-                $_SESSION['username'] = $username;
-                echo json_encode(['success' => true, 'message' => 'Inloggning lyckad']);
-            } else {
-                echo json_encode(['success' => false, 'message' => 'Fel lösenord']);
-            }
-        } else {
-            echo json_encode(['success' => false, 'message' => 'Användare finns inte']);
-        }
-    }
-
-    
-    elseif ($action === 'logout') {
-        session_unset();
-        session_destroy();
-        echo json_encode(['success' => true, 'message' => 'Utloggad']);
-    }
-
-    // -------------------- INVALID ACTION --------------------
-    else {
-        echo json_encode(['success' => false, 'message' => 'Ogiltig action']);
-    }
-
-} catch (PDOException $e) {
-    echo json_encode(['error' => $e->getMessage()]);
-}
+echo json_encode(["success" => true, "user" => $_SESSION["user"]]);

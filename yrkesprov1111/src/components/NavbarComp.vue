@@ -11,14 +11,35 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import axios from 'axios'
 
 const router = useRouter()
-const isLoggedIn = computed(() => !!localStorage.getItem('user'))
+const isLoggedIn = ref(false)
 
-const logout = () => {
-  localStorage.removeItem('user')
-  router.push('/')
+const checkSession = async () => {
+  try {
+    const res = await axios.get('http://localhost/fragesport/api/auth.php', { withCredentials: true })
+    isLoggedIn.value = res.data.loggedIn
+  } catch (err) {
+    console.error(err)
+    isLoggedIn.value = false
+  }
+}
+
+onMounted(checkSession)
+
+const logout = async () => {
+  try {
+    const res = await axios.post('http://localhost/fragesport/api/logout.php', {}, { withCredentials: true })
+    if (res.data.success) {
+      isLoggedIn.value = false
+      router.push('/')
+    }
+  } catch (err) {
+    console.error(err)
+    alert('Fel vid kontakt med servern')
+  }
 }
 </script>
