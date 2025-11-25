@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Nov 12, 2025 at 11:31 AM
+-- Generation Time: Nov 25, 2025 at 04:09 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -45,6 +45,37 @@ CREATE TABLE `class` (
   `class_name` varchar(100) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `class`
+--
+
+INSERT INTO `class` (`class_id`, `class_name`) VALUES
+(1, 'Test25'),
+(2, 'Test1'),
+(3, 'test2');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `class_exercises`
+--
+
+CREATE TABLE `class_exercises` (
+  `id` int(11) NOT NULL,
+  `class_id` int(11) NOT NULL,
+  `exercise_id` int(11) NOT NULL,
+  `assigned_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `class_exercises`
+--
+
+INSERT INTO `class_exercises` (`id`, `class_id`, `exercise_id`, `assigned_at`) VALUES
+(8, 2, 1, '2025-11-25 13:33:13'),
+(9, 3, 1, '2025-11-25 13:33:13'),
+(21, 1, 9, '2025-11-25 14:27:50');
+
 -- --------------------------------------------------------
 
 --
@@ -65,11 +96,12 @@ CREATE TABLE `exercises` (
 --
 
 INSERT INTO `exercises` (`Exercise_Id`, `Title`, `Description`, `Type`, `Is_Template`, `Created_By`) VALUES
-(1, 'Tågresan', 'Albin skulle åka tåg till sin mormor...', 'true_false', 1, 1),
-(2, 'Lisa i affären', 'Lisa gick till affären för att köpa frukt.', 'mcq', 1, 1),
-(3, 'Den borttappade mössan', 'Sätt meningarna i rätt ordning.', 'ordering', 1, 1),
-(4, 'Para ihop begrepp', 'Matcha orden med rätt förklaring.', 'match', 1, 1),
-(5, 'Textluckor', 'Fyll i de ord som saknas i texten.', 'fill_blank', 1, 1);
+(1, 'Tågresan', 'Albin skulle åka tåg till sin mormor...', 'true_false', 1, 4),
+(2, 'Lisa i affären', 'Lisa gick till affären för att köpa frukt.', 'mcq', 1, NULL),
+(3, 'Den borttappade mössan', 'Sätt meningarna i rätt ordning.', 'ordering', 1, NULL),
+(4, 'Para ihop begrepp', 'Matcha orden med rätt förklaring.', 'match', 1, NULL),
+(5, 'Textluckor', 'Fyll i de ord som saknas i texten.', 'fill_blank', 1, NULL),
+(9, 'Introtest', 'Detta är ett test och man får inte fuska om man fuskar så får man stryk', 'true_false', 0, 4);
 
 -- --------------------------------------------------------
 
@@ -89,9 +121,6 @@ CREATE TABLE `exercise_questions` (
 --
 
 INSERT INTO `exercise_questions` (`Question_Id`, `Exercise_Id`, `Statement`, `Correct`) VALUES
-(1, 1, 'Albin reste tillsammans med sin mamma hela vägen.', 0),
-(2, 1, 'Albin satt bredvid en äldre dam som bjöd honom på karamell.', 1),
-(3, 1, 'Tågresan gick till Stockholm.', 0),
 (4, 2, 'Vilken frukt köpte Lisa?', NULL),
 (5, 3, 'Albin tappade sin mössa.', NULL),
 (6, 3, 'Han gick tillbaka till parken.', NULL),
@@ -99,7 +128,12 @@ INSERT INTO `exercise_questions` (`Question_Id`, `Exercise_Id`, `Statement`, `Co
 (8, 4, 'Hund = Djur som skäller.', NULL),
 (9, 4, 'Katt = Djur som jamar.', NULL),
 (10, 5, 'Det var en ____ dag i parken.', NULL),
-(11, 5, 'Barnen lekte med en ____ boll.', NULL);
+(11, 5, 'Barnen lekte med en ____ boll.', NULL),
+(20, 1, 'Albin reste tillsammans med sin mamma hela vägen.', 0),
+(21, 1, 'Albin satt bredvid en äldre dam som bjöd honom på karamell.', 1),
+(22, 1, 'Tågresan gick till Stockholm.', 0),
+(38, 9, 'är detta ett test?', 1),
+(39, 9, 'om man fuskar får man stryk', 1);
 
 -- --------------------------------------------------------
 
@@ -168,6 +202,27 @@ INSERT INTO `roles` (`role_id`, `role_name`) VALUES
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `teacher_classes`
+--
+
+CREATE TABLE `teacher_classes` (
+  `id` int(11) NOT NULL,
+  `teacher_id` int(11) NOT NULL,
+  `class_id` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `teacher_classes`
+--
+
+INSERT INTO `teacher_classes` (`id`, `teacher_id`, `class_id`) VALUES
+(1, 4, 1),
+(2, 5, 2),
+(3, 5, 3);
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `users`
 --
 
@@ -187,8 +242,10 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`u_id`, `username`, `email`, `password`, `role_id`, `xp`, `class_id`, `created_at`) VALUES
-(1, 'teacher1', 'teacher@example.com', 'hashed_password', 3, 0, NULL, '2025-11-11 10:05:35'),
-(2, 'Admin', 'admin@g.fi', 'Admin@1', 3, 0, NULL, '2025-11-11 10:10:21');
+(2, 'Admin', 'admin@g.fi', '$2y$10$9O/r042xv477DkWp2twlz.wH5ovc5/0p1PaHYF3l1IbJV.Mt7.t9u', 3, 0, NULL, '2025-11-11 10:10:21'),
+(3, 'TestElev', 'TestElev@test.fi', '$2y$10$Xyp7Cc8BBLuFKe9ObZy1v.mGzDZqG2vrKwjcvqbeYI9pHiHhgrD0G', 1, 110, 1, '2025-11-14 11:44:03'),
+(4, 'TestTeacher', 'Testteacher@test.fi', '$2a$12$KasIO3TzmDi6rvq01GT.4unnJbJ4rIQ4HlRLzGRDNk4O663Zha7Wa', 2, 0, 1, '2025-11-20 09:03:27'),
+(5, 'TestTeacher2', 'testteacher@2.fi', '$2a$12$X7KUnC3UcfSQIwWVtgqiQuyjKjnvqsayX/YYLlzGg2Rha9tdcRFH6', 2, 0, 2, '2025-11-20 09:51:20');
 
 -- --------------------------------------------------------
 
@@ -234,6 +291,14 @@ ALTER TABLE `class`
   ADD PRIMARY KEY (`class_id`);
 
 --
+-- Indexes for table `class_exercises`
+--
+ALTER TABLE `class_exercises`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `class_id` (`class_id`),
+  ADD KEY `exercise_id` (`exercise_id`);
+
+--
 -- Indexes for table `exercises`
 --
 ALTER TABLE `exercises`
@@ -265,6 +330,14 @@ ALTER TABLE `question_options`
 --
 ALTER TABLE `roles`
   ADD PRIMARY KEY (`role_id`);
+
+--
+-- Indexes for table `teacher_classes`
+--
+ALTER TABLE `teacher_classes`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `teacher_id` (`teacher_id`,`class_id`),
+  ADD KEY `class_id` (`class_id`);
 
 --
 -- Indexes for table `users`
@@ -301,19 +374,25 @@ ALTER TABLE `achievements`
 -- AUTO_INCREMENT for table `class`
 --
 ALTER TABLE `class`
-  MODIFY `class_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `class_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+
+--
+-- AUTO_INCREMENT for table `class_exercises`
+--
+ALTER TABLE `class_exercises`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
 
 --
 -- AUTO_INCREMENT for table `exercises`
 --
 ALTER TABLE `exercises`
-  MODIFY `Exercise_Id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `Exercise_Id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT for table `exercise_questions`
 --
 ALTER TABLE `exercise_questions`
-  MODIFY `Question_Id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `Question_Id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=40;
 
 --
 -- AUTO_INCREMENT for table `experience_levels`
@@ -325,7 +404,7 @@ ALTER TABLE `experience_levels`
 -- AUTO_INCREMENT for table `question_options`
 --
 ALTER TABLE `question_options`
-  MODIFY `Option_Id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `Option_Id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
 
 --
 -- AUTO_INCREMENT for table `roles`
@@ -334,10 +413,16 @@ ALTER TABLE `roles`
   MODIFY `role_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
+-- AUTO_INCREMENT for table `teacher_classes`
+--
+ALTER TABLE `teacher_classes`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+
+--
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `u_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `u_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `user_results`
@@ -348,6 +433,13 @@ ALTER TABLE `user_results`
 --
 -- Constraints for dumped tables
 --
+
+--
+-- Constraints for table `class_exercises`
+--
+ALTER TABLE `class_exercises`
+  ADD CONSTRAINT `class_exercises_ibfk_1` FOREIGN KEY (`class_id`) REFERENCES `class` (`class_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `class_exercises_ibfk_2` FOREIGN KEY (`exercise_id`) REFERENCES `exercises` (`Exercise_Id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `exercises`
@@ -366,6 +458,13 @@ ALTER TABLE `exercise_questions`
 --
 ALTER TABLE `question_options`
   ADD CONSTRAINT `question_options_ibfk_1` FOREIGN KEY (`Question_Id`) REFERENCES `exercise_questions` (`Question_Id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `teacher_classes`
+--
+ALTER TABLE `teacher_classes`
+  ADD CONSTRAINT `teacher_classes_ibfk_1` FOREIGN KEY (`teacher_id`) REFERENCES `users` (`u_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `teacher_classes_ibfk_2` FOREIGN KEY (`class_id`) REFERENCES `class` (`class_id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `user_achievements`
