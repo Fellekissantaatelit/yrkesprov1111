@@ -34,7 +34,7 @@ const handleLogin = async () => {
       username: username.value,
       password: password.value
     }, { withCredentials: true })
-
+      console.log(res.data);
     if (res.data.success) {
       const role = res.data.user.role
 

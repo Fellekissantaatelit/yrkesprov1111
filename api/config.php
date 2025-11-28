@@ -12,8 +12,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 // --- JSON header ---
 header("Content-Type: application/json");
-$host = "127.0.0.1";
-$db   = "frågesport db";
+$host = "127.0.0.1:3306";
+$db   = "fragesport db";
 $user = "root";
 $pass = "";
 $charset = "utf8mb4";

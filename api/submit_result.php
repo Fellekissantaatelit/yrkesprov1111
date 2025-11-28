@@ -27,10 +27,10 @@ try {
     $exercise = $stmtEx->fetch(PDO::FETCH_ASSOC);
     if (!$exercise) throw new Exception("Övning hittades inte");
 
-    $maxXP = intval($exercise['Max_XP']);
+    $type = $exercise['Type'];
 
-    // --- Hämta alla frågor ---
-    $stmtQ = $pdo->prepare("SELECT * FROM exercise_questions WHERE Exercise_Id=?");
+    // --- Hämta frågor ---
+    $stmtQ = $pdo->prepare("SELECT * FROM exercise_questions WHERE Exercise_Id=? ORDER BY Question_Id ASC");
     $stmtQ->execute([$exerciseId]);
     $questions = $stmtQ->fetchAll(PDO::FETCH_ASSOC);
 
@@ -43,20 +43,48 @@ try {
 
         $isCorrect = false;
 
-        if ($exercise['Type'] === 'true_false' || $exercise['Type'] === 'ordering') {
+        // ========================================
+        // TRUE/FALSE
+        // ========================================
+        if ($type === 'true_false') {
             $isCorrect = intval($userAnswer) === intval($q['Correct']);
-        } elseif ($exercise['Type'] === 'mcq' || $exercise['Type'] === 'match' || $exercise['Type'] === 'fill_blank') {
-            $stmtO = $pdo->prepare("SELECT Option_Text, Is_Correct FROM question_options WHERE Question_Id=?");
-            $stmtO->execute([$qId]);
-            $options = $stmtO->fetchAll(PDO::FETCH_ASSOC);
+        }
 
-            foreach ($options as $opt) {
-                if ($opt['Is_Correct'] && $userAnswer === $opt['Option_Text']) {
+        // ========================================
+        // MULTIPLE CHOICE
+        // user sends Option_Id
+        // ========================================
+        elseif ($type === 'mcq') {
+            $stmtO = $pdo->prepare("SELECT Option_Id, Is_Correct FROM question_options WHERE Question_Id=?");
+            $stmtO->execute([$qId]);
+            $opts = $stmtO->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($opts as $opt) {
+                if ($opt['Is_Correct'] == 1 && $opt['Option_Id'] == $userAnswer) {
                     $isCorrect = true;
                     break;
                 }
             }
         }
+
+        // ========================================
+        // ORDERING
+        // user sends [Option_Id, Option_Id, ...]
+        // ========================================
+        elseif ($type === 'ordering') {
+
+            // Hämta rätt ordning baserat på Question_Id (ASC)
+            $correctOrder = array_map(fn($row) => $row['Question_Id'], $questions);
+
+            // Jämför båda arrayerna
+            if ($userAnswer === $correctOrder) {
+                $isCorrect = true;
+            }
+        }
+
+        // ========================================
+        // MATCH / FILL-BLANK (fixar vi senare)
+        // ========================================
 
         if ($isCorrect) $correctCount++;
     }
@@ -64,10 +92,11 @@ try {
     $percentCorrect = ($totalQuestions > 0) ? ($correctCount / $totalQuestions) * 100 : 0;
 
     $completed = $percentCorrect >= 70 ? 1 : 0;
-    $score = $completed ? $maxXP : 0;
+    $score = $completed ? intval($exercise['Max_XP']) : 0;
 
     // --- Spara resultat ---
-    $stmtRes = $pdo->prepare("INSERT INTO user_results (User_Id, Exercise_Id, Score, Completed) VALUES (?, ?, ?, ?)
+    $stmtRes = $pdo->prepare("INSERT INTO user_results (User_Id, Exercise_Id, Score, Completed)
+                              VALUES (?, ?, ?, ?)
                               ON DUPLICATE KEY UPDATE Score=?, Completed=?, Completed_At=CURRENT_TIMESTAMP()");
     $stmtRes->execute([$userId, $exerciseId, $score, $completed, $score, $completed]);
 

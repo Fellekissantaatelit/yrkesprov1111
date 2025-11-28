@@ -18,9 +18,20 @@
 
     <!-- Navigering -->
     <div class="d-flex gap-2 mb-3">
-      <button class="btn btn-secondary" @click="prevQuestion" :disabled="currentIndex === 0">Föregående</button>
-      <button class="btn btn-primary" @click="nextQuestion" :disabled="currentIndex === exercise.questions.length - 1">Nästa</button>
-      <button class="btn btn-success ms-auto" v-if="currentIndex === exercise.questions.length - 1" @click="submitExercise">Slutför</button>
+      <button class="btn btn-secondary" @click="prevQuestion" :disabled="currentIndex === 0">
+        Föregående
+      </button>
+
+      <button class="btn btn-primary" @click="nextQuestion"
+        :disabled="currentIndex === exercise.questions.length - 1">
+        Nästa
+      </button>
+
+      <button class="btn btn-success ms-auto" 
+        v-if="currentIndex === exercise.questions.length - 1"
+        @click="submitExercise">
+        Slutför
+      </button>
     </div>
 
     <!-- DEBUG-PANEL -->
@@ -36,12 +47,41 @@
   <div v-else class="text-center mt-4">
     <p>Loading...</p>
   </div>
+
+  <!-- ====================================================== -->
+  <!--                      ENDGAME SCREEN                    -->
+  <!-- ====================================================== -->
+  <div 
+    v-if="showResult"
+    class="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center"
+    style="background: rgba(0,0,0,0.8); z-index: 9999;"
+  >
+    <div class="bg-white text-center p-4 rounded shadow" style="width: 350px;">
+
+      <h2 class="mb-3">
+        {{ resultData.completed ? '🎉 Level Klarad!' : '❌ Level Misslyckad' }}
+      </h2>
+
+      <h4 class="mb-1">{{ resultData.percent_correct }}% korrekt</h4>
+
+      <p class="fs-5 mb-4">
+        + {{ resultData.xp_earned }} XP
+      </p>
+
+      <div class="d-flex justify-content-between mt-3">
+        <button class="btn btn-secondary w-45" @click="goBack">Till Menyn</button>
+        <button class="btn btn-primary w-45" @click="goNext">Nästa Övning</button>
+      </div>
+
+    </div>
+  </div>
 </template>
 
+
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
-import axios from 'axios'
+import { ref, computed, onMounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import axios from "axios";
 
 // Frågetyper
 import TrueFalseQuestion from '@/components/GameTypes/TrueFalseQuestion.vue'
@@ -50,101 +90,139 @@ import MatchQuestion from '@/components/GameTypes/MatchQuestion.vue'
 import OrderingQuestion from '@/components/GameTypes/OrderingQuestion.vue'
 import FillBlankQuestion from '@/components/GameTypes/FillBlankQuestion.vue'
 
-const route = useRoute()
-const exercise = ref(null)
-const currentIndex = ref(0)
-const answers = ref({})
-const backendResponse = ref(null)  // <-- För debug
+const route = useRoute();
+const router = useRouter();
 
-// Dynamisk komponentkarta
+const exercise = ref(null);
+const currentIndex = ref(0);
+const answers = ref({});
+const backendResponse = ref(null);
+
+// Endgame screen
+const showResult = ref(false);
+const resultData = ref(null);
+
+// Dynamisk komp-val
 const questionComponent = (type) => {
-  switch(type){
-    case 'true_false': return TrueFalseQuestion
-    case 'mcq': return MCQQuestion
-    case 'match': return MatchQuestion
-    case 'ordering': return OrderingQuestion
-    case 'fill_blank': return FillBlankQuestion
-    default: return null
+  switch (type) {
+    case "true_false": return TrueFalseQuestion;
+    case "mcq": return MCQQuestion;
+    case "match": return MatchQuestion;
+    case "ordering": return OrderingQuestion;
+    case "fill_blank": return FillBlankQuestion;
+    default: return null;
   }
-}
+};
 
-// Nuvarande fråga
-const currentQuestion = computed(() => exercise.value?.questions[currentIndex.value] ?? null)
+const currentQuestion = computed(() =>
+  exercise.value?.questions[currentIndex.value] ?? null
+);
 
 // Ladda övning
 const loadExercise = async () => {
   try {
-    const exerciseId = route.query.id
-    if(!exerciseId) return alert('Exercise ID saknas!')
+    const exerciseId = route.query.exercise_id || route.query.id;
+    if (!exerciseId) return alert("Exercise ID saknas!");
 
-    const res = await axios.get(`http://localhost/fragesport/api/get_exercise.php?id=${exerciseId}`, { withCredentials: true })
-    console.log('get_exercise response:', res.data)
-    if(res.data.success){
-      exercise.value = res.data.exercise
-      exercise.value.questions = exercise.value.questions.map(q => ({
+    const res = await axios.get(
+      `http://localhost/fragesport/api/get_exercise.php?id=${exerciseId}`,
+      { withCredentials: true }
+    );
+
+    if (res.data.success) {
+      exercise.value = res.data.exercise;
+
+      exercise.value.questions = exercise.value.questions.map((q) => ({
         ...q,
         Type: q.Type || exercise.value.Type,
         options: q.options || [],
-        Correct: q.Correct ?? null
-      }))
-    } else {
-      alert(res.data.message)
+        Correct: q.Correct ?? null,
+      }));
     }
-  } catch(err){
-    console.error(err)
-    alert('Fel vid hämtning av övning')
+  } catch (err) {
+    console.error(err);
+    alert("Fel vid hämtning av övning");
   }
-}
+};
 
-// Spara svar
 const saveAnswer = (questionId, answer) => {
-  answers.value[questionId] = answer
-  console.log('Sparade svar:', answers.value)
-}
+  answers.value[questionId] = answer;
+};
 
-// Navigering
+// Navigation
 const nextQuestion = () => {
-  if(currentIndex.value < exercise.value.questions.length - 1) currentIndex.value++
-}
+  if (currentIndex.value < exercise.value.questions.length - 1)
+    currentIndex.value++;
+};
 const prevQuestion = () => {
-  if(currentIndex.value > 0) currentIndex.value--
-}
+  if (currentIndex.value > 0) currentIndex.value--;
+};
 
-// Skicka svar
+// Skicka in resultat
 const submitExercise = async () => {
-  if(!exercise.value) return
   try {
-    const classId = route.query.class_id
-    const res = await axios.post('http://localhost/fragesport/api/submit_result.php', {
-      exercise_id: exercise.value.Exercise_Id,
-      class_id: classId,
-      answers: answers.value
-    }, { withCredentials: true })
-    
-    console.log('submit_result response:', res.data)
-    backendResponse.value = res.data  
+    const res = await axios.post(
+      "http://localhost/fragesport/api/submit_result.php",
+      {
+        exercise_id: exercise.value.Exercise_Id,
+        answers: answers.value,
+      },
+      { withCredentials: true }
+    );
 
-    if(res.data.success){
-      alert(`Du fick ${res.data.xp_earned} XP! (${res.data.percent_correct}% korrekt)`)
-    } else {
-      alert(res.data.message)
+    backendResponse.value = res.data;
+
+    if (res.data.success) {
+      resultData.value = res.data;
+      showResult.value = true;
     }
-  } catch(err){
-    console.error(err)
-    alert('Fel vid skickande av svar')
+  } catch (err) {
+    console.error(err);
+    alert("Fel vid skickande av svar");
   }
-}
+};
 
-onMounted(loadExercise)
+// Gå tillbaka till dashboard
+const goBack = () => {
+  router.push("/user-dashboard");
+};
+
+// Nästa random övning med samma typ
+const goNext = async () => {
+  const type = exercise.value.Type;
+
+  const res = await axios.get(
+    "http://localhost/fragesport/api/get_exercises.php",
+    { withCredentials: true }
+  );
+
+  const sameType = res.data.exercises.filter((e) => e.Type === type);
+
+  if (sameType.length === 0) return goBack();
+
+  const next = sameType[Math.floor(Math.random() * sameType.length)];
+
+  router.push({
+    name: "PlayExercise",
+    query: { exercise_id: next.Exercise_Id },
+  });
+
+  showResult.value = false;
+};
+
+onMounted(loadExercise);
 </script>
+
 
 <style scoped>
 .container {
   max-width: 800px;
 }
-
 button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+.w-45 {
+  width: 45%;
 }
 </style>

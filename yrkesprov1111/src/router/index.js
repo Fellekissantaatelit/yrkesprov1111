@@ -5,6 +5,7 @@ import axios from 'axios'
 import LoginView from '@/views/LoginView.vue'
 import Dashboard from '@/views/User/DashboardView.vue'
 import PlayExercise from '@/views/User/PlayExerciseView.vue'
+import PlayResult from '@/views/User/UserResultsView.vue'
 
 // --- Teacher Views ---
 import TeacherPanel from '@/views/Teacher/TeacherPanelView.vue'
@@ -20,6 +21,7 @@ const routes = [
   // User
   { path: '/user-dashboard', name: 'UserDashboard', component: Dashboard, meta: { requiresAuth: true, role: 1 } },
   { path: '/play-exercise', name: 'PlayExercise', component: PlayExercise, meta: { requiresAuth: true, role: 1 } },
+  { path: '/play-result', name: 'PlayResult', component: PlayResult, meta: { requiresAuth: true, role: 1 } },
 
 
   // Teacher
