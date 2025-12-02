@@ -51,10 +51,10 @@
           <!-- MCQ -->
           <div v-if="exercise.type === 'mcq'">
             <label class="form-label">Alternativ</label>
-            <div v-for="(opt, i) in q.options" :key="i" class="d-flex mb-1">
-              <input v-model="opt.text" class="form-control me-2" placeholder="Alternativ" required />
-              <input type="radio" :name="'correct-' + idx" v-model="q.correct" :value="i" />
-              <button class="btn btn-danger btn-sm ms-2" @click="removeOption(q, i)">X</button>
+            <div v-for="(opt, i) in q.options" :key="i" class="d-flex justify-content-center mb-1">
+              <div class="col-1,5"><button type="button"class="btn":class="q.correct === i ? 'btn-success' : 'btn-outline-secondary'"@click="q.correct = i">✔ Rätt svar</button></div>
+              <div class="col-9"><input v-model="opt.text" class="form-control me-2" placeholder="Alternativ" required /></div>
+              <div class="col-1"><button class="btn btn-danger btn-sm ms-2" @click="removeOption(q, i)">X</button></div>
             </div>
             <button type="button" class="btn btn-secondary btn-sm mt-1" @click="addOption(q)">Lägg till alternativ</button>
           </div>
@@ -120,7 +120,7 @@ const addQuestion = () => {
     exercise.value.questions.push({
       statement: "",
       correct: null,
-      options: [{ text: "" }]
+      options: [{ text: "", correct: 0 }]
     })
   } else if (exercise.value.type === "ordering") {
     exercise.value.questions.push({
@@ -136,7 +136,7 @@ const removeQuestion = (i) => {
   exercise.value.questions.splice(i, 1)
 }
 
-const addOption = (q) => q.options.push({ text: "" })
+const addOption = (q) => q.options.push({ text: "", correct: 0 })
 const removeOption = (q, i) => q.options.splice(i, 1)
 
 // Load existing exercise
@@ -154,8 +154,11 @@ const loadExercise = async (id) => {
       if (data.Type === "mcq") {
         return {
           statement: q.Statement,
-          correct: q.options.findIndex(o => o.correct == 1),
-          options: q.options.map(o => ({ text: o.text }))
+          correct: q.options.findIndex(o => o.correct == 1), // index som rätt
+          options: q.options.map(o => ({
+            text: o.text,
+            correct: o.correct == 1 ? 1 : 0
+          }))
         }
       }
       if (data.Type === "ordering") {
@@ -174,7 +177,18 @@ const saveExercise = async () => {
   if (!exercise.value.title || exercise.value.questions.length === 0)
     return alert("Titel och minst en fråga krävs")
 
+  // FIX MCQ OPTIONS: backend vill ha correct=1/0
+  if (exercise.value.type === "mcq") {
+    exercise.value.questions.forEach(q => {
+      q.options = q.options.map((opt, i) => ({
+        text: opt.text,
+        correct: q.correct === i ? 1 : 0
+      }))
+    })
+  }
+
   const payload = { exercise: exercise.value, classes: selectedClasses.value }
+
   const res = await axios.post("http://localhost/fragesport/api/create_edit_exercise.php", payload, {
     withCredentials: true,
     headers: { "Content-Type": "application/json" }
