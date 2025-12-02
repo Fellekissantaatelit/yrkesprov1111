@@ -42,13 +42,7 @@
         Nästa
       </button>
 
-      <button
-        v-if="currentIndex === exercise.questions.length - 1"
-        class="btn btn-success ms-auto"
-        @click="submitExercise"
-      >
-        Slutför
-      </button>
+      <button v-if="currentIndex === exercise.questions.length - 1"class="btn btn-success ms-auto"@click="submitExercise">Slutför</button>
     </div>
 
   </div>
@@ -61,7 +55,7 @@
     <div class="result-card glass-card text-center">
 
       <h2 class="mb-2 fw-bold">
-        {{ resultData.completed ? '🎉 Level Klarad!' : '❌ Level Misslyckad' }}
+        {{ resultData.completed ? ' Level Klarad!' : ' Level Misslyckad' }}
       </h2>
 
       <h4 class="mb-1">{{ resultData.percent_correct }}% korrekt</h4>
@@ -189,27 +183,35 @@ const prevQuestion = () => {
 //------------------------------------------------------------------
 const submitExercise = async () => {
   try {
+    const payload = {
+      exercise_id: exercise.value.Exercise_Id,   // ← FIX
+      answers: answers.value
+    };
+
+    console.log("Sending:", payload);
+
     const res = await axios.post(
       "http://localhost/fragesport/api/submit_result.php",
-      {
-        exercise_id: exercise.value.Exercise_Id,
-        answers: answers.value,
-      },
+      payload,
       { withCredentials: true }
     );
 
-    backendResponse.value = res.data;
+    console.log("Response:", res.data);
 
-    if (res.data.success) {
-      resultData.value = res.data;
-      showResult.value = true;
+    if (!res.data.success) {
+      alert("Backend error: " + res.data.message);
+      return;
     }
+
+    resultData.value = res.data;
+    showResult.value = true;
 
   } catch (err) {
     console.error(err);
     alert("Fel vid skickande av svar");
   }
 };
+
 
 //------------------------------------------------------------------
 // END SCREEN KNAPPAR

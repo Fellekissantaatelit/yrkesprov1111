@@ -2,7 +2,10 @@
   <div class="login-background d-flex justify-content-center align-items-center vh-100">
 
     <div class="login-card shadow-lg">
-      <h3 class="text-center mb-4 fw-bold">Logga in</h3>
+      <h3 class="text-center mb-4 fw-bold">
+        Studerande och 
+        Lärare Login
+      </h3>
 
       <form @submit.prevent="handleLogin">
         <div class="mb-3">
