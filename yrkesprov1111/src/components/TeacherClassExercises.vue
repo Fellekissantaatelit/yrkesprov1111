@@ -1,70 +1,91 @@
 <template>
-  <div class="container mt-4">
+  <div class="teacher-dark-page">
 
-    <h2>Övningar i {{ className }}</h2>
+    <div class="teacher-card container mt-4">
 
-    <button class="btn btn-success mb-3" @click="createExercise">
-      Skapa Ny Övning
-    </button>
+      <!-- Header + Buttons -->
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Övningar i {{ className }}</h2>
 
-    <div class="list-group">
+        <button class="btn btn-outline-light" @click="backtodash">
+          ← Tillbaka
+        </button>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="d-flex mb-3">
+        <button class="btn btn-success" @click="createExercise">
+          Skapa ny övning
+        </button>
+      </div>
+
+      <!-- Exercises list -->
+      <div class="exercise-list">
+
+        <div
+          v-for="ex in exercises"
+          :key="ex.Exercise_Id"
+          class="exercise-item"
+        >
+
+          <div class="exercise-title">
+            {{ ex.Title }}
+          </div>
+
+          <div class="exercise-actions">
+            <button class="btn btn-sm btn-primary me-2" @click="editExercise(ex)">
+              Redigera
+            </button>
+
+            <button class="btn btn-sm btn-danger" @click="openDeleteModal(ex)">
+              🗑 Ta bort
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- =============================== -->
+      <!-- DELETE MODAL (Dark UI)          -->
+      <!-- =============================== -->
       <div
-        v-for="ex in exercises"
-        :key="ex.Exercise_Id"
-        class="list-group-item d-flex justify-content-between align-items-center"
+        class="modal-backdrop-custom"
+        v-if="showDelete"
       >
-        {{ ex.Title }}
+        <div class="modal-dialog-centered-custom">
+          <div class="modal-dark-card">
 
-        <div>
-          <button class="btn btn-sm btn-primary me-2" @click="editExercise(ex)">
-            Redigera
-          </button>
+            <h4 class="text-danger mb-3">Ta bort övning</h4>
 
-          <button class="btn btn-sm btn-danger" @click="openDeleteModal(ex)">
-            Ta bort
-          </button>
+            <p class="mb-4">
+              Är du säker på att du vill ta bort  
+              <strong class="text-warning">{{ deleteData.Title }}</strong>?
+            </p>
+
+            <div class="d-flex justify-content-end gap-2">
+              <button 
+                class="btn btn-secondary"
+                @click="showDelete = false"
+              >
+                Avbryt
+              </button>
+
+              <button 
+                class="btn btn-danger"
+                @click="confirmDelete"
+              >
+                Ta bort
+              </button>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- =============================== -->
-    <!-- DELETE CONFIRM MODAL            -->
-    <!-- =============================== -->
-    <div
-      class="modal fade show d-block"
-      v-if="showDelete"
-      tabindex="-1"
-      style="background: rgba(0,0,0,0.5)"
-    >
-      <div class="modal-dialog">
-        <div class="modal-content">
-
-          <div class="modal-header">
-            <h5 class="modal-title text-danger">Ta bort övning</h5>
-            <button type="button" class="btn-close" @click="showDelete = false"></button>
-          </div>
-
-          <div class="modal-body">
-            Vill du verkligen ta bort övningen  
-            <strong>{{ deleteData.Title }}</strong>?
-          </div>
-
-          <div class="modal-footer">
-            <button class="btn btn-secondary" @click="showDelete = false">
-              Avbryt
-            </button>
-
-            <button class="btn btn-danger" @click="confirmDelete">
-              Ta bort
-            </button>
-          </div>
-
-        </div>
-      </div>
     </div>
 
   </div>
 </template>
+
 
 <script setup>
 import { ref, onMounted } from "vue"
@@ -78,9 +99,14 @@ const exercises = ref([])
 const classId = route.query.class_id
 const className = route.query.class_name
 
-// Modal state
 const showDelete = ref(false)
 const deleteData = ref({})
+
+const backtodash = () => {
+    router.push({
+    name: "TeacherDashboard",
+  })
+};
 
 const loadExercises = async () => {
   const res = await axios.get(

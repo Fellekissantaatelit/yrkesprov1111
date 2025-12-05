@@ -24,7 +24,5 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue"])
 
-const select = (id) => {
-  emit("update:modelValue", id)
-}
+const select = (id) => emit("update:modelValue", id)
 </script>

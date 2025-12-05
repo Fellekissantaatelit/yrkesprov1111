@@ -2,77 +2,46 @@
 require_once "Session.php";
 require_once "config.php";
 
-// Kontrollera användare
 if (!isset($_SESSION['user']['id'])) {
-    echo json_encode([
-        "success" => false,
-        "message" => "User not logged in"
-    ]);
+    echo json_encode(["success" => false, "message" => "User not logged in"]);
     exit;
 }
 
-// Läs JSON
-$rawInput = file_get_contents("php://input");
-$data = json_decode($rawInput, true);
-
-if (!$data) {
-    echo json_encode([
-        "success" => false,
-        "message" => "Inga data skickades eller fel JSON"
-    ]);
-    exit;
-}
+$data = json_decode(file_get_contents("php://input"), true);
 
 $exerciseData = $data["exercise"] ?? null;
-$classes = $data["classes"] ?? [];
+$classes       = $data["classes"] ?? [];
 
 if (!$exerciseData) {
-    echo json_encode([
-        "success" => false,
-        "message" => "Inga exercise-data"
-    ]);
+    echo json_encode(["success" => false, "message" => "No exercise data"]);
     exit;
 }
 
-$maxXP = isset($exerciseData["max_xp"]) ? (int)$exerciseData["max_xp"] : 25;
+$exerciseId = $exerciseData["exercise_id"] ?? null;
+$type       = $exerciseData["type"];
+$maxXP      = intval($exerciseData["max_xp"]);
 
 try {
     $pdo->beginTransaction();
 
-    $exerciseId = $exerciseData["exercise_id"] ?? null;
+    /* =====================================
+        CREATE OR UPDATE EXERCISE
+    ====================================== */
 
-    // =====================================================
-    //  UPDATE ELLER CREATE EXERCISE
-    // =====================================================
     if ($exerciseId) {
         $stmt = $pdo->prepare("
-            UPDATE exercises 
-            SET Title=?, Description=?, Type=?, Max_XP=? 
+            UPDATE exercises
+            SET Title=?, Description=?, Type=?, Max_XP=?
             WHERE Exercise_Id=?
         ");
         $stmt->execute([
             $exerciseData["title"],
             $exerciseData["description"],
-            $exerciseData["type"],
+            $type,
             $maxXP,
             $exerciseId
         ]);
-
-        // Ta bort gamla frågor + options
-        $pdo->prepare("
-            DELETE FROM question_options 
-            WHERE Question_Id IN (
-                SELECT Question_Id FROM exercise_questions WHERE Exercise_Id=?
-            )
-        ")->execute([$exerciseId]);
-
-        $pdo->prepare("
-            DELETE FROM exercise_questions 
-            WHERE Exercise_Id=?
-        ")->execute([$exerciseId]);
-
     } else {
-        // Skapa ny övning
         $stmt = $pdo->prepare("
             INSERT INTO exercises (Title, Description, Type, Created_By, Max_XP)
             VALUES (?, ?, ?, ?, ?)
@@ -80,77 +49,117 @@ try {
         $stmt->execute([
             $exerciseData["title"],
             $exerciseData["description"],
-            $exerciseData["type"],
+            $type,
             $_SESSION['user']['id'],
             $maxXP
         ]);
-
         $exerciseId = $pdo->lastInsertId();
     }
 
-    // =====================================================
-    //  LÄGG TILL NYA FRÅGOR
-    // =====================================================
+    /* =====================================
+        DELETE OLD QUESTIONS FOR ORDERING
+    ====================================== */
+
+    if ($type === "ordering") {
+        $pdo->prepare("DELETE FROM exercise_questions WHERE Exercise_Id=?")->execute([$exerciseId]);
+    }
+
+    /* =====================================
+       UPDATE / INSERT QUESTIONS
+    ====================================== */
+
+    $newQids = [];
+
     foreach ($exerciseData["questions"] as $q) {
 
-        $correctValue = $q["correct"] ?? null;
+        if ($type === "ordering") {
+            // Insert each line as its own row
+            $stmt = $pdo->prepare("
+                INSERT INTO exercise_questions (Exercise_Id, Statement, Correct)
+                VALUES (?, ?, ?)
+            ");
+            $stmt->execute([$exerciseId, $q["statement"], $q["correct"]]);
+            $newQids[] = $pdo->lastInsertId();
+            continue;
+        }
 
-        // Skapa fråga
-        $stmtQ = $pdo->prepare("
-            INSERT INTO exercise_questions (Exercise_Id, Statement, Correct)
-            VALUES (?, ?, ?)
-        ");
-        $stmtQ->execute([$exerciseId, $q["statement"], $correctValue]);
+        // Other question types
+        $qid = $q["Question_Id"] ?? null;
 
-        $questionId = $pdo->lastInsertId();
+        if ($qid) {
+            $stmt = $pdo->prepare("
+                UPDATE exercise_questions
+                SET Statement=?, Correct=?
+                WHERE Question_Id=? AND Exercise_Id=?
+            ");
+            $stmt->execute([$q["statement"], $q["correct"], $qid, $exerciseId]);
+            $newQids[] = $qid;
+        } else {
+            $stmt = $pdo->prepare("
+                INSERT INTO exercise_questions (Exercise_Id, Statement, Correct)
+                VALUES (?, ?, ?)
+            ");
+            $stmt->execute([$exerciseId, $q["statement"], $q["correct"]]);
+            $qid = $pdo->lastInsertId();
+            $newQids[] = $qid;
+        }
 
-        // --------------------
-        // Endast MCQ har options
-        // --------------------
-        if ($exerciseData["type"] === "mcq" && isset($q["options"])) {
+        /* ==========================
+              MCQ OPTIONS
+        ========================== */
+        if ($type === "mcq") {
+            $stmtOld = $pdo->prepare("SELECT Option_Id FROM question_options WHERE Question_Id=?");
+            $stmtOld->execute([$qid]);
+            $oldOptIds = $stmtOld->fetchAll(PDO::FETCH_COLUMN);
+
+            $newOptIds = [];
 
             foreach ($q["options"] as $opt) {
+                $oid = $opt["Option_Id"] ?? null;
 
-                $stmtO = $pdo->prepare("
-                    INSERT INTO question_options (Question_Id, Option_Text, Is_Correct)
-                    VALUES (?, ?, ?)
-                ");
+                if ($oid) {
+                    $stmt = $pdo->prepare("
+                        UPDATE question_options
+                        SET Option_Text=?, Is_Correct=?
+                        WHERE Option_Id=? AND Question_Id=?
+                    ");
+                    $stmt->execute([$opt["text"], $opt["correct"], $oid, $qid]);
+                    $newOptIds[] = $oid;
+                } else {
+                    $stmt = $pdo->prepare("
+                        INSERT INTO question_options (Question_Id, Option_Text, Is_Correct)
+                        VALUES (?, ?, ?)
+                    ");
+                    $stmt->execute([$qid, $opt["text"], $opt["correct"]]);
+                    $newOptIds[] = $pdo->lastInsertId();
+                }
+            }
 
-                $stmtO->execute([
-                    $questionId,
-                    $opt["text"],
-                    isset($opt["correct"]) && $opt["correct"] ? 1 : 0
-                ]);
+            foreach ($oldOptIds as $old) {
+                if (!in_array($old, $newOptIds)) {
+                    $pdo->prepare("DELETE FROM question_options WHERE Option_Id=?")->execute([$old]);
+                }
             }
         }
     }
 
-    // =====================================================
-    //  UPDATE CLASSES
-    // =====================================================
+    /* =============================
+         UPDATE CLASS RELATIONS
+    ============================== */
     $pdo->prepare("DELETE FROM class_exercises WHERE exercise_id=?")->execute([$exerciseId]);
 
-    foreach ($classes as $classId) {
-        $stmtCE = $pdo->prepare("
+    foreach ($classes as $cid) {
+        $pdo->prepare("
             INSERT INTO class_exercises (class_id, exercise_id)
             VALUES (?, ?)
-        ");
-        $stmtCE->execute([$classId, $exerciseId]);
+        ")->execute([$cid, $exerciseId]);
     }
 
     $pdo->commit();
 
-    echo json_encode([
-        "success" => true,
-        "message" => "Övning sparad!",
-        "exerciseId" => $exerciseId,
-        "max_xp" => $maxXP
-    ]);
+    echo json_encode(["success" => true, "exerciseId" => $exerciseId]);
 
 } catch (Exception $e) {
     $pdo->rollBack();
-    echo json_encode([
-        "success" => false,
-        "message" => "Fel vid sparande: " . $e->getMessage()
-    ]);
+    echo json_encode(["success" => false, "message" => $e->getMessage()]);
 }

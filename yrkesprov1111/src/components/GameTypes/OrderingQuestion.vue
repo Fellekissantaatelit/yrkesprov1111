@@ -19,48 +19,59 @@
 </template>
 
 <script setup>
-import { ref, watch } from "vue"
+import { ref, watch } from "vue";
 
 const props = defineProps({
   question: Object,
   modelValue: Array
-})
+});
 
-const emit = defineEmits(["update:modelValue"])
+const emit = defineEmits(["update:modelValue"]);
 
-// Start order from props OR default
-const localOrder = ref(
-  props.modelValue?.length
-    ? [...props.modelValue]
-    : [...props.question.options]
-)
+const localOrder = ref([]);
 
-let draggedIndex = null
+// INIT / WHEN QUESTION CHANGES
+watch(
+  () => props.question,
+  () => {
+    if (!props.question) return;
+
+    // Start with shuffled options from parent
+    localOrder.value = [...props.question.options];
+
+    // If editing or restoring a saved answer:
+    if (props.modelValue?.length) {
+      localOrder.value = props.modelValue
+        .map(id => props.question.options.find(o => o.Option_Id === id))
+        .filter(Boolean);
+    }
+  },
+  { immediate: true }
+);
+
+let draggedIndex = null;
 
 const dragStart = (index) => {
-  draggedIndex = index
-}
+  draggedIndex = index;
+};
 
 const dropItem = (dropIndex) => {
-  if (draggedIndex === null) return
+  if (draggedIndex === null) return;
 
-  const moved = localOrder.value.splice(draggedIndex, 1)[0]
-  localOrder.value.splice(dropIndex, 0, moved)
+  const moved = localOrder.value.splice(draggedIndex, 1)[0];
+  localOrder.value.splice(dropIndex, 0, moved);
 
-  draggedIndex = null
+  draggedIndex = null;
 
-  // Send only Option_Id in final order
   emit(
     "update:modelValue",
     localOrder.value.map(o => o.Option_Id)
-  )
-}
+  );
+};
 </script>
 
 <style scoped>
-.ordering-container {
-  text-align: center;
-}
+.ordering-container { text-align: center; }
 
 .instructions {
   font-size: 1.1rem;
@@ -83,11 +94,7 @@ const dropItem = (dropIndex) => {
   border-radius: 10px;
   cursor: grab;
   font-size: 1.1rem;
-  transition: transform 0.15s
-}
-
-.drag-item:active {
-  cursor: grabbing;
+  transition: transform 0.15s;
 }
 
 .drag-item:hover {

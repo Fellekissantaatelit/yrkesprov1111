@@ -5,7 +5,7 @@
     <div class="loading-card">Laddar övning…</div>
   </div>
 
-  <!-- INTRO SCREEN -->
+  <!-- INTRO -->
   <div v-else-if="showIntro" class="center-screen">
     <div class="intro-card glass-card text-center">
       <h2 class="fw-bold mb-3">{{ exercise.Title }}</h2>
@@ -17,7 +17,7 @@
     </div>
   </div>
 
-  <!-- GAME SCREEN -->
+  <!-- GAME -->
   <div v-else class="game-container glass-card p-4 text-white">
 
     <h3 class="fw-bold mb-1">{{ exercise.Title }}</h3>
@@ -25,37 +25,51 @@
 
     <div v-if="currentQuestion" class="question-card p-3 mb-4">
       <component
-        :is="questionComponent(currentQuestion.Type)"
+        :is="questionComponent(exercise.Type)"
         :question="currentQuestion"
         :model-value="answers[currentQuestion.Question_Id]"
-        @update:modelValue="val => saveAnswer(currentQuestion.Question_Id, val)"
+        @update:modelValue="value => saveAnswer(currentQuestion.Question_Id, value)"
       />
     </div>
 
-    <!-- Buttons -->
+    <!-- Navigation buttons -->
     <div class="d-flex gap-2">
-      <button class="btn btn-secondary" @click="prevQuestion" :disabled="currentIndex === 0">
+      <button 
+        class="btn btn-secondary" 
+        @click="prevQuestion"
+        :disabled="currentIndex === 0"
+      >
         Föregående
       </button>
 
-      <button class="btn btn-primary" @click="nextQuestion" :disabled="currentIndex === exercise.questions.length - 1">
+      <button 
+        class="btn btn-primary"
+        @click="nextQuestion"
+        :disabled="currentIndex === exercise.questions.length - 1"
+      >
         Nästa
       </button>
 
-      <button v-if="currentIndex === exercise.questions.length - 1"class="btn btn-success ms-auto"@click="submitExercise">Slutför</button>
+      <button 
+        v-if="currentIndex === exercise.questions.length - 1"
+        class="btn btn-success ms-auto"
+        @click="submitExercise"
+      >
+        Slutför
+      </button>
     </div>
 
   </div>
 
-  <!-- ENDGAME -->
+  <!-- RESULT OVERLAY -->
   <div 
     v-if="showResult"
     class="end-overlay d-flex justify-content-center align-items-center"
   >
     <div class="result-card glass-card text-center">
 
-      <h2 class="mb-2 fw-bold">
-        {{ resultData.completed ? ' Level Klarad!' : ' Level Misslyckad' }}
+      <h2 class="fw-bold mb-2">
+        {{ resultData.completed ? "Level Klarad!" : "Level Misslyckad" }}
       </h2>
 
       <h4 class="mb-1">{{ resultData.percent_correct }}% korrekt</h4>
@@ -72,16 +86,14 @@
 
 </template>
 
-
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import axios from "axios";
 
-// COMPONENTS
-import TrueFalseQuestion from '@/components/GameTypes/TrueFalseQuestion.vue'
-import MCQQuestion from '@/components/GameTypes/MCQQuestion.vue'
-import OrderingQuestion from '@/components/GameTypes/OrderingQuestion.vue'
+import TrueFalseQuestion from "@/components/GameTypes/TrueFalseQuestion.vue";
+import MCQQuestion from "@/components/GameTypes/MCQQuestion.vue";
+import OrderingQuestion from "@/components/GameTypes/OrderingQuestion.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -89,20 +101,14 @@ const router = useRouter();
 const exercise = ref(null);
 const currentIndex = ref(0);
 const answers = ref({});
-const backendResponse = ref(null);
 const showIntro = ref(true);
 const showResult = ref(false);
 const resultData = ref(null);
 
-//------------------------------------------------------------------
-// HELPER: Shuffle
-//------------------------------------------------------------------
+/* HELPERS */
 const shuffle = arr => [...arr].sort(() => Math.random() - 0.5);
 
-//------------------------------------------------------------------
-// FRÅGEKOMPONENT VÄLJARE
-//------------------------------------------------------------------
-const questionComponent = type => {
+const questionComponent = (type) => {
   switch (type) {
     case "true_false": return TrueFalseQuestion;
     case "mcq": return MCQQuestion;
@@ -115,60 +121,67 @@ const currentQuestion = computed(() =>
   exercise.value?.questions[currentIndex.value] ?? null
 );
 
-//------------------------------------------------------------------
-// INTRO → STARTA SPELET
-//------------------------------------------------------------------
-const startQuestions = () => {
-  showIntro.value = false;
-};
+const startQuestions = () => showIntro.value = false;
 
-//------------------------------------------------------------------
-// LADDA ÖVNING
-//------------------------------------------------------------------
+/* LOAD EXERCISE */
 const loadExercise = async () => {
   try {
-    const exerciseId = route.query.exercise_id || route.query.id;
-    if (!exerciseId) return alert("Exercise ID saknas!");
+    const id = route.query.exercise_id || route.query.id;
+    if (!id) return alert("Ingen ID!");
 
     const res = await axios.get(
-      `http://localhost/fragesport/api/get_exercise.php?id=${exerciseId}`,
+      `http://localhost/fragesport/api/get_exercise.php?id=${id}`,
       { withCredentials: true }
     );
 
-    if (!res.data.success) {
-      alert(res.data.message);
-      return;
+    if (!res.data.success) return alert(res.data.message);
+
+    const ex = res.data.exercise;
+
+    /* ORDERING — Already merged into ONE question in backend */
+    if (ex.Type === "ordering") {
+      ex.questions[0].options = shuffle(ex.questions[0].options);
     }
 
-    exercise.value = res.data.exercise;
-
-    // =============================
-    // ORDERING — endast options shufflas
-    // =============================
-    if (exercise.value.Type === "ordering") {
-      exercise.value.questions[0].options = shuffle(exercise.value.questions[0].options);
+    /* TRUE/FALSE */
+    if (ex.Type === "true_false") {
+      ex.questions = ex.questions.map(q => ({
+        ...q,
+        options: [
+          { Option_Id: 1, text: "Sant", correct: q.Correct == 1 },
+          { Option_Id: 0, text: "Falskt", correct: q.Correct == 0 }
+        ]
+      }));
     }
 
-    // =============================
-    // TRUE/FALSE & MCQ — shuffla frågorna
-    // =============================
-    else {
-      exercise.value.questions = shuffle(exercise.value.questions);
+    /* MCQ */
+    if (ex.Type === "mcq") {
+      ex.questions = ex.questions.map(q => ({
+        ...q,
+        options: q.options.map(o => ({
+          Option_Id: Number(o.Option_Id),
+          text: o.Option_Text,
+          correct: Number(o.Is_Correct)
+        }))
+      }));
+
+      ex.questions = shuffle(ex.questions);
     }
 
-  } catch (err) {
-    console.error(err);
-    alert("Fel vid hämtning av övning");
+    exercise.value = ex;
+
+  } catch (e) {
+    console.error(e);
+    alert("Fel vid hämtning");
   }
 };
 
-//------------------------------------------------------------------
-// NAVIGATION
-//------------------------------------------------------------------
-const saveAnswer = (questionId, answer) => {
-  answers.value[questionId] = answer;
+/* SAVE ANSWER */
+const saveAnswer = (qid, value) => {
+  answers.value[qid] = value;
 };
 
+/* NAVIGATION */
 const nextQuestion = () => {
   if (currentIndex.value < exercise.value.questions.length - 1)
     currentIndex.value++;
@@ -178,17 +191,13 @@ const prevQuestion = () => {
   if (currentIndex.value > 0) currentIndex.value--;
 };
 
-//------------------------------------------------------------------
-// SKICKA RESULTAT
-//------------------------------------------------------------------
+/* SUBMIT */
 const submitExercise = async () => {
   try {
     const payload = {
-      exercise_id: exercise.value.Exercise_Id,   // ← FIX
+      exercise_id: exercise.value.Exercise_Id,
       answers: answers.value
     };
-
-    console.log("Sending:", payload);
 
     const res = await axios.post(
       "http://localhost/fragesport/api/submit_result.php",
@@ -196,33 +205,29 @@ const submitExercise = async () => {
       { withCredentials: true }
     );
 
-    console.log("Response:", res.data);
-
-    if (!res.data.success) {
-      alert("Backend error: " + res.data.message);
-      return;
-    }
+    if (!res.data.success)
+      return alert("Fel: " + res.data.message);
 
     resultData.value = res.data;
     showResult.value = true;
 
   } catch (err) {
     console.error(err);
-    alert("Fel vid skickande av svar");
+    alert("Fel vid skickning");
   }
 };
 
+const goBack = () => router.push("/user-dashboard");
 
-//------------------------------------------------------------------
-// END SCREEN KNAPPAR
-//------------------------------------------------------------------
-const goBack = () => {
-  router.push("/user-dashboard");
-};
-
+/* NEXT EXERCISE SAME TYPE */
 const goNext = async () => {
   const type = exercise.value.Type;
-  const res = await axios.get("http://localhost/fragesport/api/get_exercises.php", { withCredentials: true });
+
+  const res = await axios.get(
+    "http://localhost/fragesport/api/get_exercises.php",
+    { withCredentials: true }
+  );
+
   const sameType = res.data.exercises.filter(e => e.Type === type);
 
   if (sameType.length === 0) return goBack();
@@ -231,7 +236,7 @@ const goNext = async () => {
 
   router.push({
     name: "PlayExercise",
-    query: { exercise_id: next.Exercise_Id },
+    query: { exercise_id: next.Exercise_Id }
   });
 
   showResult.value = false;

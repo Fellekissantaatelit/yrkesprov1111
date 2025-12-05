@@ -1,7 +1,5 @@
 <script setup>
-    import Navbar from '@/components/NavbarComp.vue'
-    import { ref } from 'vue'
-
+    import Navbar from '@/components/TeacherNavbarComp.vue'
 </script>
 
 <template>

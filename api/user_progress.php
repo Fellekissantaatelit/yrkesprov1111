@@ -17,10 +17,14 @@ try {
     $totalXP = $stmt->fetchColumn() ?? 0;
 
 
-    // 2. Senaste resultat (inkluderar även FAILED)
+    // 2. Senaste resultat (visar även misslyckade)
     $stmt = $pdo->prepare("
-        SELECT ur.Exercise_Id AS exercise_id, ur.Score AS xp, ur.Completed AS completed,
-               ur.Completed_At AS completed_at, e.Title AS title
+        SELECT 
+            ur.Exercise_Id AS exercise_id,
+            ur.Score AS xp,
+            ur.Completed AS completed,
+            ur.Completed_At AS completed_at,
+            e.Title AS title
         FROM user_results ur
         JOIN exercises e ON ur.Exercise_Id = e.Exercise_Id
         WHERE ur.User_Id = ?
@@ -31,8 +35,8 @@ try {
     $recent = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 
-    // 3. Alla tillgängliga övningar (INGA döljs längre)
-    //    + Include completed status
+    // 3. Tillgängliga övningar
+    //    FIX: Övning är completed om det NÅGONSIN funnits ett completed-försök.
     $stmt = $pdo->prepare("
         SELECT 
             e.Exercise_Id,
@@ -41,11 +45,18 @@ try {
             e.Type,
             ce.class_id,
             (
-                SELECT Completed 
-                FROM user_results 
-                WHERE User_Id = ? AND Exercise_Id = e.Exercise_Id
-                ORDER BY Completed_At DESC
-                LIMIT 1
+                SELECT 
+                    CASE 
+                        WHEN EXISTS (
+                            SELECT 1 
+                            FROM user_results 
+                            WHERE User_Id = ? 
+                              AND Exercise_Id = e.Exercise_Id
+                              AND Completed = 1
+                        )
+                        THEN 1 
+                        ELSE 0 
+                    END
             ) AS Completed
         FROM class_exercises ce
         JOIN exercises e ON ce.exercise_id = e.Exercise_Id
@@ -57,9 +68,12 @@ try {
     $available = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 
-    // 4. Levels
-    $stmt = $pdo->query("SELECT Level_Id, Level_Name, XP_Required 
-                         FROM experience_levels ORDER BY XP_Required ASC");
+    // 4. XP Levels
+    $stmt = $pdo->query("
+        SELECT Level_Id, Level_Name, XP_Required 
+        FROM experience_levels
+        ORDER BY XP_Required ASC
+    ");
     $levels = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 
